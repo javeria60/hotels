@@ -32,7 +32,7 @@ router.get('/', async (req, res) =>{
     catch(err){
         console.log(err);
         res.status(500).json({error: "internal server error"});
-    }
+    }   
 });
 
 //get method for /menu/testtype
