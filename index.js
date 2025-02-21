@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const db = require('./db');
 const passport = require('./routes/auth');
+const {jwtAuthMidleware, generateToken} =  require('./routes/jwt')
 
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());

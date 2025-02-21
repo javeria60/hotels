@@ -4,76 +4,91 @@ const router = express.Router();
 
 const Person = require('../models/person');
 
+const { jwtAuthMiddleware } = require('./jwt'); 
+
+
+
 const passport = require('./auth');
+const { generateToken } = require('./jwt');
 
-//post route for /person
+//signup route for /person
 
-router.post('/', async (req, res) =>{
+router.post('/signup', async (req, res) =>{
     try{
         const data = req.body;
         const newPerson = new Person(data);
 
         const response = await newPerson.save();
         console.log('data saved',response);
-        res.status(200).json(response);
+
+        const payload = {
+            id: response.id,
+            username: response.username
+        }
+        console.log(JSON.stringify(payload));
+        const token = generateToken(payload);
+        console.log("Token is:", token);
+
+        res.status(200).json({response: response, token: token}); 
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({error: "internal server error"});
+    }
+})
+
+//login route for /person
+router.post('/login', async (req, res) =>{
+    try{
+        const {username, password} = req.body;
+        console.log("Request Body:", req.body);
+
+        const user = await Person.findOne({username: username});
+        if(!user || !(await user.comparePassword(password))){
+            return res.status(401).json({error: 'Incorrect Username or Password'});
+        }
+
+        const payload = {
+            id: user.id,
+            username: user.username
+        }
+        const token = generateToken(payload);
+        res.json({token})
+    }
+    catch(err){
+        console.error(err);
+        return res.status(500).json({error:'Internal Server Error'})
+    }
+});
+
+//profile route for /person
+router.get('/profile', jwtAuthMiddleware, async (req, res) =>{
+    try{
+        const userdata = req.user;
+        const userId = userdata.id;
+        const user = await Person.findById(userId);
+        console.log("user", user)
+
+        res.status(200).json({user});
+    }
+    catch(err){
+        console.error(err)
+        return res.status(500).json({error: 'Internal Server Error'})
+    }
+})
+
+//get route for /person
+router.get('/', jwtAuthMiddleware, async (req,res) => {
+    try{
+        const data = await Person.find();
+        console.log("Data fetched:");
+        res.status(200).json(data);
     }
     catch(err){
         console.log(err);
         res.status(500).json({error: "internal server error"});
     }
 });
-
-
-//get route for /person
-
-// router.get('/', async (req,res) => {
-//     try{
-//         const data = await Person.find();
-//         console.log("Data fetched:");
-//         res.status(200).json(data);
-//     }
-//     catch(err){
-//         console.log(err);
-//         res.status(500).json({error: "internal server error"});
-//     }
-// });
-
-//prints unauthorized
-router.get('/', passport.authenticate('local', { session: false }), async (req, res) => {
-    try {
-        const user = req.user;
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        const data = await Person.findOne({ username: user.username });;
-        res.status(200).json(data); 
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ error: "internal server error" });
-    }
-});
-
-//prints incorrect username or password
-// router.get('/', (req, res, next) => {
-//     passport.authenticate('local', { session: false }, (err, user, info) => {
-//         if (err) return res.status(500).json({ error: 'Internal server error' }); 
-//         if (!user) return res.status(401).json({ error: info.message }); 
-
-//         req.user = user; 
-//         next(); 
-//     })(req, res, next);
-// }, async (req, res) => {
-//     try {
-//         const user = req.user; 
-//         const data = await Person.findOne({ username: user.username });
-//         res.status(200).json(data); 
-//     } catch (err) {
-//         console.log(err);
-//         res.status(500).json({ error: 'Internal server error' }); 
-//     }
-// });
-
-
-
 //get route for /person/worktype
 
 router.get('/:worktype', async (req,res) =>{
